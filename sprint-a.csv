@@ -1,0 +1,9 @@
+ticket_id,type,parent,title,description,assignee,points,status
+BW-101,Story,Sparks,Sparks — inline reflection capture while reading,"As a reader I want to capture a spark (reflection or idea) inline while reading so I can record thoughts in the moment without leaving my reading view. Includes free-text entry, timestamp, and optional page number.",Sarah Wolfe,8,Done
+BW-102,Story,Sparks,Sparks — tag and categorize reflections,"As a reader I want to apply tags to my sparks (e.g. 'theme', 'question', 'quote') so I can filter and review them by type later.",Sarah Wolfe,3,Done
+BW-103,Story,Kindle Import,Kindle highlight import via CSV,"As a reader I want to upload a Kindle highlights CSV export so my existing highlights are automatically imported and linked to the correct book in Bookworm.",Tom Rankin,5,Done
+BW-104,Story,Kindle Import,Kindle import — map highlights to Sparks,"As a reader I want imported Kindle highlights to appear as Sparks so they live in the same reflection layer as my manual entries.",Tom Rankin,3,Done
+BW-105,Story,Book Search,Book search powered by Open Library API,"As a reader I want to search for a book by title or author and select it from results so I don't have to manually enter book metadata.",Ramesh Gupta,5,Done
+BW-106,Story,Reading Status,Reading status — add Paused state,"As a reader I want to mark a book as Paused so I can distinguish books I've temporarily set aside from ones I'm actively reading or have abandoned.",Ramesh Gupta,1,Done
+BW-107,Bug,,Fix: duplicate books appearing after sync,"Books synced across devices occasionally created duplicate entries in the library view. Root cause was missing idempotency check on sync write. Fixed.",Tom Rankin,3,Done
+BW-108,Tech Debt,,Migrate auth to Supabase v2,"Upgraded Supabase auth client from v1 to v2 to align with current SDK. No user-facing changes. Required updates to session handling and token refresh logic.",Ramesh Gupta,5,Done
