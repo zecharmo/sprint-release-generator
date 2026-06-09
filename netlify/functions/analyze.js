@@ -1,9 +1,12 @@
-// Netlify Function: Claude API proxy with IP-based rate limiting
-// Rate limit: 2 runs per IP per 24 hours (stored in Netlify Blobs)
+// Netlify Function: Claude API proxy with in-memory rate limiting
+// Rate limit: 2 runs per IP per 24 hours
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 const MAX_RUNS = 2;
 const WINDOW_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+// In-memory store — persists across warm invocations, resets on cold start
+const rateLimitStore = {};
 
 exports.handler = async (event) => {
   const headers = {
@@ -27,29 +30,15 @@ exports.handler = async (event) => {
     'unknown';
 
   try {
-    // ── RATE LIMITING via Netlify Blobs ──
-    const { getStore } = require('@netlify/blobs');
-    const store = getStore('rate-limits');
-
-    const key = `ip_${clientIP.replace(/\./g, '_').replace(/:/g, '_')}`;
+    // ── RATE LIMITING (in-memory) ──
     const now = Date.now();
+    const key = clientIP;
 
-    let record = { count: 0, windowStart: now };
-
-    try {
-      const existing = await store.get(key, { type: 'json' });
-      if (existing) {
-        if (now - existing.windowStart > WINDOW_MS) {
-          record = { count: 0, windowStart: now };
-        } else {
-          record = existing;
-        }
-      }
-    } catch (_) {
-      // No existing record — first request from this IP
+    if (!rateLimitStore[key] || now - rateLimitStore[key].windowStart > WINDOW_MS) {
+      rateLimitStore[key] = { count: 0, windowStart: now };
     }
 
-    if (record.count >= MAX_RUNS) {
+    if (rateLimitStore[key].count >= MAX_RUNS) {
       return {
         statusCode: 429,
         headers,
@@ -69,7 +58,6 @@ exports.handler = async (event) => {
     }
 
     const { prompt } = body;
-    // FIX 1: Increased limit from 8000 to 20000 to accommodate full sprint prompts
     if (!prompt || typeof prompt !== 'string' || prompt.length > 20000) {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'Invalid prompt' }) };
     }
@@ -103,11 +91,9 @@ exports.handler = async (event) => {
     const claudeData = await claudeResponse.json();
     const result = claudeData.content?.[0]?.text || '';
 
-    // FIX 2: Use store.set() with JSON.stringify instead of store.setJSON()
-    record.count++;
-    await store.set(key, JSON.stringify(record), { ttl: Math.ceil(WINDOW_MS / 1000) });
-
-    const runsLeft = MAX_RUNS - record.count;
+    // ── INCREMENT COUNTER ──
+    rateLimitStore[key].count++;
+    const runsLeft = MAX_RUNS - rateLimitStore[key].count;
 
     return {
       statusCode: 200,
