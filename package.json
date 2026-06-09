@@ -1,8 +1,5 @@
 {
   "name": "sprint-release-generator",
   "version": "1.0.0",
-  "description": "Sprint Release Generator — PM Portfolio · Molly Zechar",
-  "dependencies": {
-    "@netlify/blobs": "^8.0.0"
-  }
+  "description": "Sprint Release Generator — PM Portfolio · Molly Zechar"
 }
