@@ -6,7 +6,6 @@ const MAX_RUNS = 2;
 const WINDOW_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 exports.handler = async (event) => {
-  // CORS headers — update the origin to your actual Netlify/Squarespace domain
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
@@ -14,7 +13,6 @@ exports.handler = async (event) => {
     'Content-Type': 'application/json',
   };
 
-  // Handle preflight
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers, body: '' };
   }
@@ -23,7 +21,6 @@ exports.handler = async (event) => {
     return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
   }
 
-  // Get client IP for rate limiting
   const clientIP =
     event.headers['x-forwarded-for']?.split(',')[0].trim() ||
     event.headers['client-ip'] ||
@@ -42,7 +39,6 @@ exports.handler = async (event) => {
     try {
       const existing = await store.get(key, { type: 'json' });
       if (existing) {
-        // Reset window if 24h have passed
         if (now - existing.windowStart > WINDOW_MS) {
           record = { count: 0, windowStart: now };
         } else {
@@ -73,7 +69,8 @@ exports.handler = async (event) => {
     }
 
     const { prompt } = body;
-    if (!prompt || typeof prompt !== 'string' || prompt.length > 8000) {
+    // FIX 1: Increased limit from 8000 to 20000 to accommodate full sprint prompts
+    if (!prompt || typeof prompt !== 'string' || prompt.length > 20000) {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'Invalid prompt' }) };
     }
 
@@ -92,7 +89,7 @@ exports.handler = async (event) => {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
+        max_tokens: 1500,
         messages: [{ role: 'user', content: prompt }],
       }),
     });
@@ -100,15 +97,15 @@ exports.handler = async (event) => {
     if (!claudeResponse.ok) {
       const err = await claudeResponse.text();
       console.error('Claude API error:', err);
-      return { statusCode: 502, headers, body: JSON.stringify({ error: 'AI service error' }) };
+      return { statusCode: 502, headers, body: JSON.stringify({ error: 'AI service error', detail: err }) };
     }
 
     const claudeData = await claudeResponse.json();
     const result = claudeData.content?.[0]?.text || '';
 
-    // ── INCREMENT RATE LIMIT COUNTER ──
+    // FIX 2: Use store.set() with JSON.stringify instead of store.setJSON()
     record.count++;
-    await store.setJSON(key, record, { ttl: Math.ceil(WINDOW_MS / 1000) });
+    await store.set(key, JSON.stringify(record), { ttl: Math.ceil(WINDOW_MS / 1000) });
 
     const runsLeft = MAX_RUNS - record.count;
 
@@ -123,7 +120,7 @@ exports.handler = async (event) => {
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: 'Internal server error' }),
+      body: JSON.stringify({ error: 'Internal server error', detail: err.message }),
     };
   }
 };
